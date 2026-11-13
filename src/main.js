@@ -610,7 +610,7 @@ function layoutCrescentMenu(slotProgress) {
       const y = -arcLift * Math.max(0, 1 - norm * norm * 0.85);
       btn.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), ${y.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
     } else {
-      const maxStepY = compactLandscape ? 72 : tablet ? 112 : 132;
+      const maxStepY = compactLandscape ? 68 : tablet ? 102 : 118;
       const arcDepth = compactLandscape ? 40 : tablet ? 56 : 76;
       const baseX = compactLandscape ? 38 : tablet ? 40 : 44;
       const norm = Math.min(absOff / 2.2, 1.2);

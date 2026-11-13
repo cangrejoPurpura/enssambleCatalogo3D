@@ -426,7 +426,7 @@ body.is-locked .crescent-item:not(.is-active) {
 .crescent-controls {
   position: fixed;
   left: 38px;
-  bottom: 24px;
+  bottom: -36px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -713,7 +713,7 @@ body.is-locked .crescent-item:not(.is-active) {
 
   .crescent-controls {
     left: 22px;
-    bottom: 10px;
+    bottom: -24px;
     gap: 8px;
   }
 
