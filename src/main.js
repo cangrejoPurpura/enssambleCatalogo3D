@@ -22,6 +22,7 @@ const categoryListEl = document.getElementById("category-list");
 const categoryEmptyMsg = document.getElementById("category-empty-msg");
 const activeFilterChip = document.getElementById("active-filter-chip");
 
+const scalePropBar = document.getElementById("scale-prop-bar");
 const btnAvonToggle = document.getElementById("btn-avon-toggle");
 const btnAvonRotate = document.getElementById("btn-avon-rotate");
 
@@ -105,7 +106,7 @@ const camera = new THREE.PerspectiveCamera(
   35,
   window.innerWidth / window.innerHeight,
   0.015,
-  60
+  80
 );
 
 const composerTarget = new THREE.WebGLRenderTarget(
@@ -175,7 +176,7 @@ const targetPan = new THREE.Vector3();
 const MIN_POLAR = 0.03;
 const MAX_POLAR = Math.PI / 2 - 0.025;
 const MIN_RADIUS = 0.22;
-const MAX_RADIUS = 5.8;
+const MAX_RADIUS = 12.5;
 
 let isDragging = false;
 let isPanning = false;
@@ -197,8 +198,8 @@ const rooms = [];
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 /**
- * Crea un cuadernillo A4 clásico de Avon (21.0 × 29.7 × 0.8 cm) en escala real 1:1
- * con textura procedural nítida de portada y páginas blancas, arrastrable sobre el mueble.
+ * Crea un cuadernillo A4 clásico de Avon anillado (21.0 × 29.7 × 0.8 cm) en escala real 1:1
+ * con portada naranja + paisaje de atardecer en lago y anillado metálico, arrastrable sobre el mueble.
  */
 function createAvonCatalogProp() {
   const widthM = 0.21;
@@ -210,69 +211,144 @@ function createAvonCatalogProp() {
   coverCanvas.height = 724;
   const ctx = coverCanvas.getContext("2d");
 
-  const bgGrad = ctx.createLinearGradient(0, 0, 512, 724);
-  bgGrad.addColorStop(0, "#4c0519");
-  bgGrad.addColorStop(0.42, "#9d174d");
-  bgGrad.addColorStop(0.78, "#db2777");
-  bgGrad.addColorStop(1, "#3b0764");
-  ctx.fillStyle = bgGrad;
+  // Fondo naranja cálido de tapa Avon
+  const baseOrange = ctx.createLinearGradient(0, 0, 512, 724);
+  baseOrange.addColorStop(0, "#f59e0b");
+  baseOrange.addColorStop(0.45, "#f38b0a");
+  baseOrange.addColorStop(1, "#e06d06");
+  ctx.fillStyle = baseOrange;
   ctx.fillRect(0, 0, 512, 724);
 
-  // Reflejo diagonal sutil de revista satinada
-  const sheenGrad = ctx.createLinearGradient(0, 0, 440, 520);
-  sheenGrad.addColorStop(0, "rgba(255,255,255,0.22)");
-  sheenGrad.addColorStop(0.5, "rgba(255,255,255,0.03)");
-  sheenGrad.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = sheenGrad;
+  // Recuadro principal con escena de atardecer sobre lago (Nudgee Beach | Australia)
+  ctx.save();
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(420, 0);
-  ctx.lineTo(140, 724);
-  ctx.lineTo(0, 724);
+  ctx.moveTo(42, 22);
+  ctx.lineTo(486, 22);
+  ctx.lineTo(486, 540);
+  ctx.quadraticCurveTo(465, 588, 340, 575);
+  ctx.quadraticCurveTo(175, 558, 72, 468);
+  ctx.quadraticCurveTo(42, 435, 42, 340);
   ctx.closePath();
-  ctx.fill();
+  ctx.clip();
 
-  // Arco decorativo editorial
-  ctx.strokeStyle = "rgba(253, 230, 138, 0.42)";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(360, 430, 175, 0, Math.PI * 2);
-  ctx.stroke();
+  // Cielo crepuscular violeta-magenta-ámbar
+  const skyGrad = ctx.createLinearGradient(110, 20, 390, 340);
+  skyGrad.addColorStop(0, "#7c4d96");
+  skyGrad.addColorStop(0.32, "#a95aa4");
+  skyGrad.addColorStop(0.58, "#df799f");
+  skyGrad.addColorStop(0.82, "#f59e42");
+  skyGrad.addColorStop(1, "#fde047");
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(40, 20, 450, 330);
 
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(24, 24, 464, 676);
+  // Nubes violáceas suaves
+  const cloudCenters = [
+    [220, 105, 110, 48, "rgba(116, 62, 138, 0.42)"],
+    [340, 82, 130, 54, "rgba(232, 162, 202, 0.36)"],
+    [410, 165, 120, 46, "rgba(155, 82, 146, 0.38)"],
+    [290, 205, 140, 40, "rgba(251, 146, 60, 0.32)"],
+  ];
+  for (const [cx, cy, rx, ry, col] of cloudCenters) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, ry / rx);
+    const cg = ctx.createRadialGradient(0, 0, rx * 0.1, 0, 0, rx);
+    cg.addColorStop(0, col);
+    cg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(0, 0, rx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
-  // Cabecera AVON clásica
+  // Agua reflejando el atardecer
+  const waterGrad = ctx.createLinearGradient(110, 330, 390, 585);
+  waterGrad.addColorStop(0, "#facc15");
+  waterGrad.addColorStop(0.28, "#fb923c");
+  waterGrad.addColorStop(0.55, "#c04b7a");
+  waterGrad.addColorStop(0.82, "#ea580c");
+  waterGrad.addColorStop(1, "#f38b0a");
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(40, 330, 450, 270);
+
+  // Destello dorado en la línea del horizonte y reflejo
+  const sunGlow = ctx.createRadialGradient(255, 332, 8, 255, 332, 145);
+  sunGlow.addColorStop(0, "rgba(254, 240, 138, 0.92)");
+  sunGlow.addColorStop(0.42, "rgba(251, 191, 36, 0.45)");
+  sunGlow.addColorStop(1, "rgba(251, 146, 60, 0)");
+  ctx.fillStyle = sunGlow;
+  ctx.fillRect(40, 210, 450, 260);
+
+  // Siluetas de árboles costeros sobre el horizonte
+  ctx.fillStyle = "#2b131c";
+  ctx.fillRect(40, 326, 450, 8);
+  const trees = [
+    [95, 328, 34], [128, 324, 42], [164, 327, 28],
+    [352, 328, 26], [388, 325, 36], [428, 324, 40], [462, 327, 30],
+  ];
+  for (const [tx, ty, tr] of trees) {
+    ctx.beginPath();
+    ctx.arc(tx, ty - tr * 0.45, tr * 0.65, 0, Math.PI * 2);
+    ctx.arc(tx - tr * 0.35, ty - tr * 0.25, tr * 0.45, 0, Math.PI * 2);
+    ctx.arc(tx + tr * 0.35, ty - tr * 0.28, tr * 0.48, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Reflejo oscuro suave de arboledas en el agua
+  ctx.fillStyle = "rgba(43, 19, 28, 0.48)";
+  for (const [tx, ty, tr] of trees) {
+    ctx.beginPath();
+    ctx.ellipse(tx, ty + tr * 0.55, tr * 0.72, tr * 0.46, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Difuminado cálido superior/derecho/inferior para fundir la foto en la tapa naranja
+  const edgeTop = ctx.createLinearGradient(0, 18, 0, 72);
+  edgeTop.addColorStop(0, "rgba(243, 139, 10, 0.96)");
+  edgeTop.addColorStop(1, "rgba(243, 139, 10, 0)");
+  ctx.fillStyle = edgeTop;
+  ctx.fillRect(40, 18, 450, 60);
+
+  const edgeRight = ctx.createLinearGradient(490, 0, 444, 0);
+  edgeRight.addColorStop(0, "rgba(243, 139, 10, 0.94)");
+  edgeRight.addColorStop(1, "rgba(243, 139, 10, 0)");
+  ctx.fillStyle = edgeRight;
+  ctx.fillRect(444, 18, 48, 560);
+
+  const edgeLeft = ctx.createLinearGradient(40, 0, 96, 0);
+  edgeLeft.addColorStop(0, "rgba(243, 139, 10, 0.98)");
+  edgeLeft.addColorStop(1, "rgba(243, 139, 10, 0)");
+  ctx.fillStyle = edgeLeft;
+  ctx.fillRect(40, 18, 60, 560);
+
+  const edgeBottom = ctx.createLinearGradient(0, 580, 0, 470);
+  edgeBottom.addColorStop(0, "rgba(232, 118, 4, 1)");
+  edgeBottom.addColorStop(1, "rgba(232, 118, 4, 0)");
+  ctx.fillStyle = edgeBottom;
+  ctx.fillRect(40, 465, 450, 125);
+  ctx.restore();
+
+  // Perforaciones circulares para el anillado izquierdo
+  ctx.fillStyle = "#4b2304";
+  for (let i = 0; i < 22; i++) {
+    const py = 28 + i * 31.8;
+    ctx.beginPath();
+    ctx.arc(17, py, 5.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Texto inferior izquierdo "Nudgee Beach | AUSTRALIA"
+  ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.textAlign = "left";
+  ctx.font = "600 13px sans-serif";
+  ctx.fillText("Nudgee Beach  |  AUSTRALIA", 48, 676);
+
+  // Marca AVON inferior derecha
   ctx.fillStyle = "#ffffff";
-  ctx.textAlign = "center";
-  ctx.font = "700 94px Georgia, serif";
-  ctx.fillText("AVON", 256, 132);
-
-  ctx.fillStyle = "rgba(255, 228, 230, 0.92)";
-  ctx.font = "600 20px sans-serif";
-  ctx.fillText("REVISTA · CAMPAÑA CLÁSICA", 256, 172);
-
-  // Etiqueta central de escala real A4
-  ctx.fillStyle = "rgba(15, 10, 24, 0.56)";
-  ctx.beginPath();
-  ctx.roundRect(106, 304, 300, 118, 16);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.38)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.fillStyle = "#fbcfe8";
-  ctx.font = "700 32px sans-serif";
-  ctx.fillText("TAMAÑO A4", 256, 354);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "600 24px sans-serif";
-  ctx.fillText("21.0 × 29.7 cm", 256, 394);
-
-  ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
-  ctx.font = "500 17px sans-serif";
-  ctx.fillText("GUÍA DE REFERENCIA REAL", 256, 654);
+  ctx.textAlign = "right";
+  ctx.font = "700 52px 'Segoe UI', Arial, sans-serif";
+  ctx.fillText("AVON", 468, 682);
 
   const coverTex = new THREE.CanvasTexture(coverCanvas);
   coverTex.colorSpace = THREE.SRGBColorSpace;
@@ -288,49 +364,65 @@ function createAvonCatalogProp() {
     metalness: 0.0,
   });
   const spineMat = new THREE.MeshStandardMaterial({
-    color: "#701a45",
-    roughness: 0.34,
+    color: "#dd7208",
+    roughness: 0.36,
     metalness: 0.04,
   });
   const coverMat = new THREE.MeshStandardMaterial({
     map: coverTex,
-    roughness: 0.26,
+    roughness: 0.28,
     metalness: 0.04,
   });
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: "#f1f5f9",
+    roughness: 0.24,
+    metalness: 0.78,
+  });
 
-  // Bloque interior de páginas (levemente remetido para simular tapas)
+  // Bloque interior de páginas (levemente remetido desde el lomo anillado)
   const pagesMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(widthM - 0.002, heightM - 0.0014, depthM - 0.002),
+    new THREE.BoxGeometry(widthM - 0.008, heightM - 0.0014, depthM - 0.003),
     paperMat
   );
-  pagesMesh.position.set(0.0005, heightM * 0.5, 0);
+  pagesMesh.position.set(0.0035, heightM * 0.5, 0);
 
-  // Tapa superior brillante con portada Avon
+  // Tapa superior brillante con portada Avon paisaje + atardecer
   const topCoverMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(widthM, 0.0008, depthM),
+    new THREE.BoxGeometry(widthM - 0.004, 0.0008, depthM),
     [spineMat, spineMat, coverMat, spineMat, spineMat, spineMat]
   );
-  topCoverMesh.position.set(0, heightM - 0.0004, 0);
+  topCoverMesh.position.set(0.002, heightM - 0.0004, 0);
 
-  // Contratapa inferior
+  // Contratapa naranja inferior
   const bottomCoverMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(widthM, 0.0008, depthM),
+    new THREE.BoxGeometry(widthM - 0.004, 0.0008, depthM),
     spineMat
   );
-  bottomCoverMesh.position.set(0, 0.0004, 0);
+  bottomCoverMesh.position.set(0.002, 0.0004, 0);
 
-  // Lomo izquierdo
+  // Lomo de borde
   const spineMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(0.003, heightM, depthM),
+    new THREE.BoxGeometry(0.002, heightM, depthM),
     spineMat
   );
-  spineMesh.position.set(-widthM * 0.5 + 0.0015, heightM * 0.5, 0);
+  spineMesh.position.set(-widthM * 0.5 + 0.005, heightM * 0.5, 0);
 
   [pagesMesh, topCoverMesh, bottomCoverMesh, spineMesh].forEach((m) => {
     m.castShadow = true;
     m.receiveShadow = true;
     group.add(m);
   });
+
+  // Anillado espiral metálico doble a lo largo del margen izquierdo
+  const ringGeo = new THREE.TorusGeometry(0.0068, 0.0011, 8, 18);
+  const ringCount = 22;
+  for (let i = 0; i < ringCount; i++) {
+    const zPos = -depthM * 0.46 + (i / (ringCount - 1)) * (depthM * 0.92);
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(-widthM * 0.5 + 0.0032, heightM * 0.5, zPos);
+    ring.castShadow = true;
+    group.add(ring);
+  }
 
   scene.add(group);
   return {
@@ -393,9 +485,9 @@ function placeAvonOnActiveFurniture() {
 function setAvonVisible(visible) {
   isAvonVisible = Boolean(visible);
   avonProp.group.visible = isAvonVisible;
+  scalePropBar.classList.toggle("is-active", isAvonVisible);
   btnAvonToggle.classList.toggle("is-active", isAvonVisible);
   btnAvonToggle.setAttribute("aria-pressed", String(isAvonVisible));
-  btnAvonRotate.hidden = !isAvonVisible;
   if (isAvonVisible) {
     placeAvonOnActiveFurniture();
   } else {
@@ -406,6 +498,7 @@ function setAvonVisible(visible) {
 
 btnAvonToggle.addEventListener("click", () => setAvonVisible(!isAvonVisible));
 btnAvonRotate.addEventListener("click", () => {
+  if (!isAvonVisible) setAvonVisible(true);
   avonTargetYaw += Math.PI * 0.5;
 });
 
@@ -525,6 +618,7 @@ function createPedestalRoom(item, idx) {
     spot,
     modelPivot,
     modelRoot: null,
+    modelSize: null,
     targetCenterY: 0.52,
     idealRadius: 1.85,
     interactiveParts: [],
@@ -892,15 +986,15 @@ function layoutCrescentMenu(slotProgress) {
 
     if (portrait) {
       const maxStepX = Math.min(92, Math.max(72, window.innerWidth * 0.21));
-      const arcLift = 30;
+      const arcLift = 18;
       const norm = Math.min(absOff / 2.0, 1.2);
       const x = offset * maxStepX;
       const y = -arcLift * Math.max(0, 1 - norm * norm * 0.85);
       btn.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), ${y.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
     } else {
-      const maxStepY = compactLandscape ? 68 : tablet ? 102 : 118;
-      const arcDepth = compactLandscape ? 40 : tablet ? 56 : 76;
-      const baseX = compactLandscape ? 38 : tablet ? 40 : 44;
+      const maxStepY = compactLandscape ? 68 : tablet ? 104 : 122;
+      const arcDepth = compactLandscape ? 36 : tablet ? 58 : 76;
+      const baseX = compactLandscape ? 60 : tablet ? 68 : 78;
       const norm = Math.min(absOff / 2.2, 1.2);
       const x = baseX + arcDepth * Math.max(0, 1 - norm * norm * 0.85);
       const y = offset * maxStepY;
@@ -1262,25 +1356,56 @@ canvas.addEventListener("dblclick", (e) => {
   if (isLocked) userInteracted = true;
 });
 
+/**
+ * Calcula una distancia de cámara adaptativa al aspect ratio y dimensiones reales del mueble
+ * para que cada pieza conserve un impacto visual uniforme tanto en móvil vertical como en escritorio.
+ */
+function computeIdealRadius(size) {
+  if (!size) return 1.85;
+  const aspect = Math.max(0.32, window.innerWidth / Math.max(1, window.innerHeight));
+  const halfVTan = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+  const halfHTan = halfVTan * aspect;
+
+  const majorPlan = Math.max(size.x, size.z);
+  const minorPlan = Math.min(size.x, size.z);
+  const projW = majorPlan * 0.84 + minorPlan * 0.48;
+  const projH = size.y * 0.92 + minorPlan * 0.24;
+
+  const portrait = isPortraitLayout();
+  const compactLandscape = isLandscapeMobile();
+
+  if (portrait) {
+    const rW = (projW * 0.5) / (halfHTan * 0.68);
+    const rH = (projH * 0.5) / (halfVTan * 0.34);
+    return clampRadius(Math.max(2.65, rW, rH));
+  }
+
+  const fillW = compactLandscape ? 0.44 : 0.44;
+  const fillH = compactLandscape ? 0.52 : 0.56;
+  const rW = (projW * 0.5) / (halfHTan * fillW);
+  const rH = (projH * 0.5) / (halfVTan * fillH);
+  return clampRadius(Math.max(1.75, rW, rH));
+}
+
 function updateCameraFraming() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   camera.aspect = w / h;
 
   if (isPortraitLayout()) {
-    const topReserved = Math.min(205, h * 0.25);
-    const bottomReserved = Math.min(168, h * 0.2);
+    const topReserved = Math.min(238, h * 0.29);
+    const bottomReserved = Math.min(208, h * 0.25);
     const availableCenterY = topReserved + (h - topReserved - bottomReserved) * 0.5;
     const pixelShiftY = h * 0.5 - availableCenterY;
     camera.setViewOffset(w, h, 0, pixelShiftY, w, h);
   } else if (isLandscapeMobile()) {
-    const leftReserved = 130;
+    const leftReserved = 150;
     const rightReserved = 250;
     const availableCenter = leftReserved + (w - leftReserved - rightReserved) * 0.5;
     const pixelShiftX = w * 0.5 - availableCenter;
     camera.setViewOffset(w, h, pixelShiftX, 0, w, h);
   } else {
-    const leftReserved = w <= 1080 ? 165 : 210;
+    const leftReserved = w <= 1080 ? 190 : 240;
     const rightReserved = w <= 1080 ? 250 : 320;
     const availableCenter = leftReserved + (w - leftReserved - rightReserved) * 0.5;
     const pixelShiftX = w * 0.5 - availableCenter;
@@ -1300,6 +1425,14 @@ window.addEventListener("resize", () => {
   composer.setSize(w, h);
   smaaPass.setSize(Math.max(1, Math.floor(w * dpr)), Math.max(1, Math.floor(h * dpr)));
   updateCameraFraming();
+  rooms.forEach((room) => {
+    if (room.modelSize) {
+      room.idealRadius = computeIdealRadius(room.modelSize);
+    }
+  });
+  if (!userInteracted && rooms[activeIndex]) {
+    targetRadius = rooms[activeIndex].idealRadius;
+  }
   layoutCrescentMenu(currentSlotProgress);
 });
 
@@ -1335,8 +1468,9 @@ FURNITURE_CATALOG.forEach((item, idx) => {
       const room = rooms[idx];
       room.modelPivot.add(modelRoot);
       room.modelRoot = modelRoot;
+      room.modelSize = size.clone();
       room.targetCenterY = size.y * 0.52;
-      room.idealRadius = Math.max(1.55, Math.max(size.x * 1.95, size.y * 2.15, size.z * 2.15));
+      room.idealRadius = computeIdealRadius(size);
 
       registerInteractiveParts(room, modelRoot);
 
