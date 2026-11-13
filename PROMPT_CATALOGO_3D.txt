@@ -1,0 +1,110 @@
+================================================================================
+PROMPT MAESTRO PARA CREAR UNA WEB DE CATÁLOGO 3D INTERACTIVO (THREE.JS + PBR)
+================================================================================
+Copia y pega este texto cuando quieras que una IA construya un catálogo 3D
+idéntico en diseño, arquitectura, iluminación, navegación y responsividad,
+reemplazando únicamente los bloques entre [CORCHETES].
+
+--------------------------------------------------------------------------------
+INICIO DEL PROMPT:
+--------------------------------------------------------------------------------
+
+Quiero crear una aplicación web de catálogo 3D interactivo sin bundler (HTML5 +
+CSS3 + Vanilla JavaScript ES Modules con Import Map cargando Three.js v0.170+,
+compatible con GitHub Pages y live-server local).
+
+1. TEMÁTICA Y DATOS A REEMPLAZAR
+- Marca / Rubro: [NOMBRE_DEL_PROYECTO / RUBRO, ej: muebles / electrodomésticos / objetos]
+- Categorías para el menú desplegable: ['Todos', [CATEGORIA_1], [CATEGORIA_2], ..., 'Otros']
+- Productos (.glb en ./models/):
+  [LISTA DE PRODUCTOS CON: id ('01', '02'...), title, category, tags[], description,
+   dimensions, materialsLabel, glbPath, accentHex, palette[], defaultYaw, defaultPitch]
+
+2. ESTÉTICA VISUAL Y FONDO
+- Fondo de toda la web: un degradado nocturno espacial multicapa (no color sólido)
+  combinando radial-gradients azul medianoche, índigo cósmico y destellos violetas/cian
+  oscuros sobre linear-gradient profundo (#060913 -> #0d1528 -> #141a35 -> #080c17).
+- El `<canvas>` de Three.js debe ser transparente (`alpha: true`, `setClearColor(0x000000, 0)`,
+  `scene.background = null`) para que el degradado CSS se vea sin cortes.
+- Cada producto descansa sobre un pedestal circular oscuro flotante con un anillo sutil
+  en el color `--accent` del producto, y el suelo usa `ShadowMaterial` transparente
+  para proyectar sombras reales directo sobre el degradado nocturno.
+- Tipografía: Google Fonts "Space Grotesk" para títulos/controles/números y "Inter"
+  para descripciones, sobre paneles glassmorphism oscuros (`backdrop-filter: blur(18px)`,
+  borde blanco muy sutil al 13%).
+
+3. CALIDAD 3D, MATERIALES PBR Y ANTI-ALIASING
+- Carga de modelos `.glb` con `GLTFLoader` en metros reales (`1 unidad = 1 metro`),
+  centrados en X/Z y apoyados en Y = 0 sobre el pedestal. El pedestal y el cono
+  del SpotLight deben escalarse automáticamente al tamaño real del objeto.
+- Geometría realista: los tableros/piezas deben tener un biselado fino (~0.6 mm)
+  con normales ponderadas (`WeightedNormal` plano) y tangentes exportadas para que
+  las aristas ("filos") capturen un brillo especular sutil sin deformar la cara plana.
+- Mapas PBR (`baseColor`, `normalMap` y `roughnessMap` sin compresión JPEG 4:2:0 en
+  los normal maps para evitar manchas en tonos lisos; `maxAnisotropy` al máximo).
+- Antialiasing avanzado para evitar dientes de sierra tanto fijos como al girar:
+  usar `EffectComposer` + `WebGLRenderTarget` (`HalfFloatType`, `samples: 4` MSAA,
+  `RGBAFormat` transparente) + `RenderPass` + `OutputPass` + `SMAAPass`.
+- Iluminación de estudio 360° mediante `PMREMGenerator` oscuro direccional (sin lavar
+  tonos oscuros ni negros), `NeutralToneMapping`, `SpotLight` cenital con sombras
+  suaves 2048px y luces direccionales rasantes (`keyRakeLight`, `sideRakeLight`,
+  `rimLight`) para resaltar micro-relieves y aristas.
+
+4. NAVEGACIÓN TIPO MEDIALUNA Y CANDADO DE INSPECCIÓN
+- Menú de selección lateral con forma de medialuna SVG (`crescent-nav`):
+  * La línea de la luna debe ser continua (sin guiones), afinada y con fade-in/fade-out
+    en ambos extremos, ensanchándose progresivamente y con mayor blur radial hacia
+    su centro.
+  * Las miniaturas de cada ítem se generan automáticamente renderizando el GLB real
+    con un renderer offscreen y se distribuyen curvadas siguiendo el arco de la luna.
+  * Sin barra inferior de ayudas de teclado ni cuadro de porcentaje de zoom.
+- Botón candado (`candadito` abierto/cerrado clickable) solo en la miniatura activa:
+  * En PC / tablet / celular horizontal: ubicado FUERA a la izquierda del thumbnail
+    activo, centrado verticalmente y ligeramente espaciado a la izquierda.
+  * En celular vertical: ubicado FUERA por debajo del thumbnail activo, centrado
+    horizontalmente y espaciado hacia abajo.
+  * Cuando el candado está CERRADO: bloquea el cambio accidental de producto (flechas,
+    rueda, swipe y clics en otros ítems quedan bloqueados), pausa la rotación automática,
+    desbloquea zoom libre con rueda normal del mouse y movimiento panorámico ampliado
+    (clic derecho / Shift+arrastre / rueda central / arrastre con 2 dedos / flechas o WASD),
+    y permite hacer clic directo sobre partes móviles del GLB (ej. nodos `Drawer_*`,
+    `Cajon_*`, `Door_*`, `Puerta_*`) mediante `Raycaster` para abrirlos/cerrarlos con
+    animación suave (`easeInOutCubic`).
+
+5. MENÚ HAMBURGUESA Y CARTEL DE INFORMACIÓN PLEGABLE
+- Arriba a la izquierda: botón icono hamburguesa (3 rayas horizontales) junto al
+  indicador de color `--accent` y ÚNICAMENTE el nombre de la etiqueta/categoría
+  activa (`Todos`, etc., sin título largo de marca).
+- Al tocar el icono de 3 rayas se despliega una ventana flotante glassmorphism con las
+  etiquetas de categorías y contador de productos por etiqueta, permitiendo filtrar
+  la medialuna en tiempo real.
+- Cartel de información del producto: SIEMPRE posicionado arriba a la derecha, tanto
+  desplegado como plegado:
+  * Fila superior de 3 columnas: número de ítem a la izquierda, título del producto
+    centrado horizontalmente respecto al número y al botón derecho, y botón `X` (al
+    plegar pasa a `+` en esa esquina superior derecha).
+  * Contenido desplegado: pill de categoría centrada debajo del título, descripción,
+    y ficha técnica con medidas, nombre propio de materiales (sin códigos técnicos)
+    y paleta de colores.
+  * Al pulsar `X` se pliega a una píldora compacta manteniendo número + título centrado
+    + `+` arriba a la derecha; al pulsar `+` se despliega de nuevo.
+
+6. OBJETO DE REFERENCIA DE ESCALA REAL INTERACTIVO
+- Botón flotante de referencia de tamaño (ej. `[REEMPLAZAR: Cuadernillo A4 clásico 21×29.7 cm o regla/objeto de escala real]`):
+  * Al activarlo aparece en escena en escala real (1:1 en metros), apoyado sobre el
+    producto actual y proyectando sombra.
+  * El usuario puede agarrarlo con clic/dedo y arrastrarlo libremente para apoyarlo
+    sobre cualquier superficie horizontal o estante del objeto 3D (raycasting sobre
+    caras superiores del modelo), además de contar con botón para rotarlo 90°.
+
+7. RESPONSIVE MULTI-DISPOSITIVO
+- PC, tablets y celular en orientación horizontal: medialuna vertical a la izquierda,
+  objeto 3D encuadrado en el espacio central libre (`camera.setViewOffset`), cartel
+  de info arriba a la derecha, menú hamburguesa arriba a la izquierda.
+- Celular en orientación vertical (`max-width: 820px and orientation: portrait`):
+  * Objeto 3D centrado horizontalmente entre la tarjeta de info superior y la luna
+    inferior.
+  * La medialuna pasa abajo en horizontal con navegación izquierda-derecha por toque
+    (swipe) y con flechas laterales a ambos lados (`←` / `→`).
+  * Candado debajo del thumbnail activo centrado horizontalmente.
+================================================================================

@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { CATALOG_CATEGORIES, FURNITURE_CATALOG } from "./furnitureData.js";
 
 const ROOM_SPACING = 6.5; // Distancia vertical entre salas
@@ -17,6 +21,9 @@ const categoryDrawer = document.getElementById("category-drawer");
 const categoryListEl = document.getElementById("category-list");
 const categoryEmptyMsg = document.getElementById("category-empty-msg");
 const activeFilterChip = document.getElementById("active-filter-chip");
+
+const btnAvonToggle = document.getElementById("btn-avon-toggle");
+const btnAvonRotate = document.getElementById("btn-avon-rotate");
 
 const infoCard = document.getElementById("info-card");
 const infoToggleBtn = document.getElementById("info-toggle");
@@ -70,14 +77,15 @@ function buildDarkStudioEnv(targetRenderer) {
   return rt;
 }
 
-// Renderer principal transparente para mostrar el degradado nocturno CSS debajo
+// Renderer principal transparente + Postprocesado MSAA + SMAA (elimina dientes de sierra fijos y al girar)
+const pixelRatio = Math.min(window.devicePixelRatio, 2);
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
   alpha: true,
   powerPreference: "high-performance",
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(pixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000, 0);
 renderer.shadowMap.enabled = true;
@@ -100,6 +108,32 @@ const camera = new THREE.PerspectiveCamera(
   60
 );
 
+const composerTarget = new THREE.WebGLRenderTarget(
+  Math.max(1, Math.floor(window.innerWidth * pixelRatio)),
+  Math.max(1, Math.floor(window.innerHeight * pixelRatio)),
+  {
+    type: THREE.HalfFloatType,
+    samples: 4,
+  }
+);
+const composer = new EffectComposer(renderer, composerTarget);
+composer.setPixelRatio(pixelRatio);
+composer.setSize(window.innerWidth, window.innerHeight);
+
+const renderPass = new RenderPass(scene, camera);
+renderPass.clear = true;
+renderPass.clearAlpha = 0;
+composer.addPass(renderPass);
+
+const outputPass = new OutputPass();
+composer.addPass(outputPass);
+
+const smaaPass = new SMAAPass(
+  Math.max(1, Math.floor(window.innerWidth * pixelRatio)),
+  Math.max(1, Math.floor(window.innerHeight * pixelRatio))
+);
+composer.addPass(smaaPass);
+
 const hemiLight = new THREE.HemisphereLight("#f7f4ee", "#151d34", 0.32);
 scene.add(hemiLight);
 
@@ -115,7 +149,7 @@ const rimLight = new THREE.DirectionalLight("#dce8ff", 0.82);
 rimLight.position.set(-1.6, 2.1, -2.5);
 scene.add(rimLight);
 
-// Estado de catálogo, filtros, candadito, tarjeta plegable y cámara
+// Estado de catálogo, filtros, candadito, tarjeta plegable, cuadernillo A4 y cámara
 let selectedCategory = "Todos";
 let filteredIndices = FURNITURE_CATALOG.map((_, idx) => idx);
 let activeSlot = 0;
@@ -162,12 +196,271 @@ const interactivePartByMesh = new WeakMap();
 const rooms = [];
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
+/**
+ * Crea un cuadernillo A4 clásico de Avon (21.0 × 29.7 × 0.8 cm) en escala real 1:1
+ * con textura procedural nítida de portada y páginas blancas, arrastrable sobre el mueble.
+ */
+function createAvonCatalogProp() {
+  const widthM = 0.21;
+  const depthM = 0.297;
+  const heightM = 0.008;
+
+  const coverCanvas = document.createElement("canvas");
+  coverCanvas.width = 512;
+  coverCanvas.height = 724;
+  const ctx = coverCanvas.getContext("2d");
+
+  const bgGrad = ctx.createLinearGradient(0, 0, 512, 724);
+  bgGrad.addColorStop(0, "#4c0519");
+  bgGrad.addColorStop(0.42, "#9d174d");
+  bgGrad.addColorStop(0.78, "#db2777");
+  bgGrad.addColorStop(1, "#3b0764");
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 512, 724);
+
+  // Reflejo diagonal sutil de revista satinada
+  const sheenGrad = ctx.createLinearGradient(0, 0, 440, 520);
+  sheenGrad.addColorStop(0, "rgba(255,255,255,0.22)");
+  sheenGrad.addColorStop(0.5, "rgba(255,255,255,0.03)");
+  sheenGrad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = sheenGrad;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(420, 0);
+  ctx.lineTo(140, 724);
+  ctx.lineTo(0, 724);
+  ctx.closePath();
+  ctx.fill();
+
+  // Arco decorativo editorial
+  ctx.strokeStyle = "rgba(253, 230, 138, 0.42)";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(360, 430, 175, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(24, 24, 464, 676);
+
+  // Cabecera AVON clásica
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.font = "700 94px Georgia, serif";
+  ctx.fillText("AVON", 256, 132);
+
+  ctx.fillStyle = "rgba(255, 228, 230, 0.92)";
+  ctx.font = "600 20px sans-serif";
+  ctx.fillText("REVISTA · CAMPAÑA CLÁSICA", 256, 172);
+
+  // Etiqueta central de escala real A4
+  ctx.fillStyle = "rgba(15, 10, 24, 0.56)";
+  ctx.beginPath();
+  ctx.roundRect(106, 304, 300, 118, 16);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.38)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "#fbcfe8";
+  ctx.font = "700 32px sans-serif";
+  ctx.fillText("TAMAÑO A4", 256, 354);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "600 24px sans-serif";
+  ctx.fillText("21.0 × 29.7 cm", 256, 394);
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+  ctx.font = "500 17px sans-serif";
+  ctx.fillText("GUÍA DE REFERENCIA REAL", 256, 654);
+
+  const coverTex = new THREE.CanvasTexture(coverCanvas);
+  coverTex.colorSpace = THREE.SRGBColorSpace;
+  coverTex.anisotropy = maxAniso;
+
+  const group = new THREE.Group();
+  group.name = "Avon_A4_Reference";
+  group.visible = false;
+
+  const paperMat = new THREE.MeshStandardMaterial({
+    color: "#f4f2eb",
+    roughness: 0.78,
+    metalness: 0.0,
+  });
+  const spineMat = new THREE.MeshStandardMaterial({
+    color: "#701a45",
+    roughness: 0.34,
+    metalness: 0.04,
+  });
+  const coverMat = new THREE.MeshStandardMaterial({
+    map: coverTex,
+    roughness: 0.26,
+    metalness: 0.04,
+  });
+
+  // Bloque interior de páginas (levemente remetido para simular tapas)
+  const pagesMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(widthM - 0.002, heightM - 0.0014, depthM - 0.002),
+    paperMat
+  );
+  pagesMesh.position.set(0.0005, heightM * 0.5, 0);
+
+  // Tapa superior brillante con portada Avon
+  const topCoverMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(widthM, 0.0008, depthM),
+    [spineMat, spineMat, coverMat, spineMat, spineMat, spineMat]
+  );
+  topCoverMesh.position.set(0, heightM - 0.0004, 0);
+
+  // Contratapa inferior
+  const bottomCoverMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(widthM, 0.0008, depthM),
+    spineMat
+  );
+  bottomCoverMesh.position.set(0, 0.0004, 0);
+
+  // Lomo izquierdo
+  const spineMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.003, heightM, depthM),
+    spineMat
+  );
+  spineMesh.position.set(-widthM * 0.5 + 0.0015, heightM * 0.5, 0);
+
+  [pagesMesh, topCoverMesh, bottomCoverMesh, spineMesh].forEach((m) => {
+    m.castShadow = true;
+    m.receiveShadow = true;
+    group.add(m);
+  });
+
+  scene.add(group);
+  return {
+    group,
+    meshes: [pagesMesh, topCoverMesh, bottomCoverMesh, spineMesh],
+  };
+}
+
+const avonProp = createAvonCatalogProp();
+let isAvonVisible = false;
+let isDraggingAvon = false;
+let avonSurfaceY = 0.7;
+let avonTargetYaw = 0.14;
+let avonCurrentYaw = 0.14;
+const avonDragOffset = new THREE.Vector3();
+const avonTempNormal = new THREE.Vector3();
+const avonNormalMatrix = new THREE.Matrix3();
+const avonDragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const avonPlaneHit = new THREE.Vector3();
+
+function getAvonPlacementTargets(room) {
+  const targets = [];
+  if (room?.modelRoot) targets.push(room.modelRoot);
+  if (room?.pedestal) targets.push(room.pedestal);
+  return targets;
+}
+
+function placeAvonOnActiveFurniture() {
+  const room = rooms[activeIndex];
+  if (!room || !room.modelRoot) return;
+
+  room.roomGroup.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(room.modelRoot);
+  const center = box.getCenter(new THREE.Vector3());
+
+  // Busca la superficie superior más alta del mueble cerca del centro
+  const probeOrigin = new THREE.Vector3(center.x, box.max.y + 0.5, center.z);
+  raycaster.set(probeOrigin, new THREE.Vector3(0, -1, 0));
+  const hits = raycaster.intersectObjects(getAvonPlacementTargets(room), true);
+
+  let chosenPoint = null;
+  for (const hit of hits) {
+    if (!hit.face) continue;
+    avonNormalMatrix.getNormalMatrix(hit.object.matrixWorld);
+    avonTempNormal.copy(hit.face.normal).applyMatrix3(avonNormalMatrix).normalize();
+    if (avonTempNormal.y > 0.65) {
+      chosenPoint = hit.point.clone();
+      break;
+    }
+  }
+
+  if (!chosenPoint) {
+    chosenPoint = new THREE.Vector3(center.x, box.max.y, center.z);
+  }
+
+  avonSurfaceY = chosenPoint.y;
+  avonProp.group.position.set(chosenPoint.x, chosenPoint.y + 0.0004, chosenPoint.z);
+}
+
+function setAvonVisible(visible) {
+  isAvonVisible = Boolean(visible);
+  avonProp.group.visible = isAvonVisible;
+  btnAvonToggle.classList.toggle("is-active", isAvonVisible);
+  btnAvonToggle.setAttribute("aria-pressed", String(isAvonVisible));
+  btnAvonRotate.hidden = !isAvonVisible;
+  if (isAvonVisible) {
+    placeAvonOnActiveFurniture();
+  } else {
+    isDraggingAvon = false;
+    canvas.classList.remove("can-drag-prop", "is-dragging-prop");
+  }
+}
+
+btnAvonToggle.addEventListener("click", () => setAvonVisible(!isAvonVisible));
+btnAvonRotate.addEventListener("click", () => {
+  avonTargetYaw += Math.PI * 0.5;
+});
+
+function updateAvonDragAtPointer(clientX, clientY, isStart = false) {
+  const room = rooms[activeIndex];
+  if (!room) return;
+
+  const rect = canvas.getBoundingClientRect();
+  pointerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointerNDC, camera);
+
+  const hits = raycaster.intersectObjects(getAvonPlacementTargets(room), true);
+  let placed = false;
+
+  for (const hit of hits) {
+    if (!hit.face) continue;
+    avonNormalMatrix.getNormalMatrix(hit.object.matrixWorld);
+    avonTempNormal.copy(hit.face.normal).applyMatrix3(avonNormalMatrix).normalize();
+    if (avonTempNormal.y > 0.65) {
+      if (isStart) {
+        avonDragOffset.subVectors(avonProp.group.position, hit.point);
+        avonDragOffset.y = 0;
+      }
+      avonSurfaceY = hit.point.y;
+      avonProp.group.position.set(
+        hit.point.x + avonDragOffset.x,
+        hit.point.y + 0.0004,
+        hit.point.z + avonDragOffset.z
+      );
+      placed = true;
+      break;
+    }
+    // Si chocamos de lleno con una cara vertical externa antes de encontrar estante superior, deslizamos sobre el plano horizontal activo
+    break;
+  }
+
+  if (!placed) {
+    avonDragPlane.constant = -avonSurfaceY;
+    if (raycaster.ray.intersectPlane(avonDragPlane, avonPlaneHit)) {
+      const clampLim = Math.max(0.95, (room.idealRadius || 1.85) * 0.65);
+      avonProp.group.position.set(
+        Math.max(-clampLim, Math.min(clampLim, avonPlaneHit.x + avonDragOffset.x)),
+        avonSurfaceY + 0.0004,
+        Math.max(-clampLim, Math.min(clampLim, avonPlaneHit.z + avonDragOffset.z))
+      );
+    }
+  }
+}
+
 function createPedestalRoom(item, idx) {
   const roomY = -idx * ROOM_SPACING;
   const roomGroup = new THREE.Group();
   roomGroup.position.y = roomY;
 
-  // Suelo invisible receptor de sombras para mantener intacto el degradado nocturno de fondo
   const floorMat = new THREE.ShadowMaterial({
     color: "#02040a",
     opacity: 0.45,
@@ -240,8 +533,8 @@ function createPedestalRoom(item, idx) {
 }
 
 const MATERIAL_TACTILE_PRESETS = {
-  Egger_U732_Gris_Macadan: { roughness: 0.56, normalScale: 0.30, envMapIntensity: 0.94 },
-  Egger_U999_Negro: { roughness: 0.55, normalScale: 0.30, envMapIntensity: 1.0 },
+  Egger_U732_Gris_Macadan: { roughness: 0.56, normalScale: 0.28, envMapIntensity: 0.94 },
+  Egger_U999_Negro: { roughness: 0.55, normalScale: 0.28, envMapIntensity: 1.0 },
   Faplac_108TXT_Gris_Humo: { roughness: 0.58, normalScale: 0.25, envMapIntensity: 0.88 },
   Faplac_140BAR_Camellia: { roughness: 0.66, normalScale: 0.30, envMapIntensity: 0.78 },
   Egger_W954_Blanco: { roughness: 0.72, normalScale: 0.24, envMapIntensity: 0.72 },
@@ -491,13 +784,7 @@ function selectCategory(cat) {
 
   selectedCategory = cat;
   filteredIndices = nextIndices;
-
-  if (selectedCategory === "Todos") {
-    activeFilterChip.hidden = true;
-  } else {
-    activeFilterChip.textContent = selectedCategory;
-    activeFilterChip.hidden = false;
-  }
+  activeFilterChip.textContent = selectedCategory;
 
   categoryListEl.querySelectorAll(".category-pill").forEach((el) => {
     el.classList.toggle("is-selected", el.dataset.category === selectedCategory);
@@ -515,6 +802,7 @@ function selectCategory(cat) {
   updateInfoPanel(activeIndex);
   if (activeIndex !== prevActive) {
     resetOrbitForRoom(activeIndex);
+    if (isAvonVisible) placeAvonOnActiveFurniture();
   }
   layoutCrescentMenu(currentSlotProgress);
   setDrawerOpen(false);
@@ -690,10 +978,10 @@ function selectSlot(slot) {
     targetSlotProgress = clampedSlot;
     updateInfoPanel(activeIndex);
     resetOrbitForRoom(activeIndex);
+    if (isAvonVisible) placeAvonOnActiveFurniture();
   }
 }
 
-// Controles de navegación (flechas, rueda, swipe táctil en la medialuna, teclado)
 btnPrev.addEventListener("click", () => selectSlot(activeSlot - 1));
 btnNext.addEventListener("click", () => selectSlot(activeSlot + 1));
 
@@ -792,7 +1080,6 @@ window.addEventListener("keyup", (e) => {
   pressedKeys.delete(e.key.toLowerCase());
 });
 
-// Arrastre en el canvas + clic en cajones/puertas (en modo candado)
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
 const _panRight = new THREE.Vector3();
@@ -821,6 +1108,15 @@ function applyPanDelta(dx, dy) {
   targetPan.x = Math.max(-panLimit, Math.min(panLimit, targetPan.x));
   targetPan.y = Math.max(-panLimit * 0.85, Math.min(panLimit * 1.15, targetPan.y));
   targetPan.z = Math.max(-panLimit, Math.min(panLimit, targetPan.z));
+}
+
+function isPointerOverAvon(clientX, clientY) {
+  if (!isAvonVisible) return false;
+  const rect = canvas.getBoundingClientRect();
+  pointerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointerNDC, camera);
+  return raycaster.intersectObjects(avonProp.meshes, false).length > 0;
 }
 
 function tryInteractAtPointer(clientX, clientY, toggleOnHit) {
@@ -853,8 +1149,21 @@ canvas.addEventListener("pointerdown", (e) => {
     lastPinchDist = metrics?.dist ?? null;
     lastPinchCenter = metrics ? { x: metrics.cx, y: metrics.cy } : null;
     isDragging = false;
+    isDraggingAvon = false;
+    canvas.classList.remove("is-dragging-prop");
     return;
   }
+
+  // Si toca el cuadernillo A4 de Avon, agarrarlo y moverlo por sobre el mueble
+  if (e.button === 0 && isPointerOverAvon(e.clientX, e.clientY)) {
+    isDraggingAvon = true;
+    userInteracted = true;
+    canvas.classList.add("is-dragging-prop");
+    updateAvonDragAtPointer(e.clientX, e.clientY, true);
+    canvas.setPointerCapture(e.pointerId);
+    return;
+  }
+
   isDragging = true;
   pointerDownButton = e.button;
   isPanning = e.button === 2 || e.button === 1 || e.shiftKey;
@@ -883,8 +1192,19 @@ canvas.addEventListener("pointermove", (e) => {
     return;
   }
 
+  if (isDraggingAvon) {
+    updateAvonDragAtPointer(e.clientX, e.clientY, false);
+    return;
+  }
+
   if (!isDragging) {
-    if (isLocked) tryInteractAtPointer(e.clientX, e.clientY, false);
+    const overAvon = isPointerOverAvon(e.clientX, e.clientY);
+    canvas.classList.toggle("can-drag-prop", overAvon);
+    if (!overAvon && isLocked) {
+      tryInteractAtPointer(e.clientX, e.clientY, false);
+    } else if (overAvon) {
+      canvas.classList.remove("can-interact-part");
+    }
     return;
   }
 
@@ -914,6 +1234,14 @@ function stopDragging(e) {
     lastPinchDist = null;
     lastPinchCenter = null;
   }
+  if (isDraggingAvon) {
+    isDraggingAvon = false;
+    canvas.classList.remove("is-dragging-prop");
+    if (e?.pointerId !== undefined && canvas.hasPointerCapture?.(e.pointerId)) {
+      canvas.releasePointerCapture(e.pointerId);
+    }
+    return;
+  }
   if (!isDragging) return;
   const wasClick = dragDistance < 6 && pointerDownButton === 0 && e?.type === "pointerup";
   isDragging = false;
@@ -928,7 +1256,8 @@ function stopDragging(e) {
 
 canvas.addEventListener("pointerup", stopDragging);
 canvas.addEventListener("pointercancel", stopDragging);
-canvas.addEventListener("dblclick", () => {
+canvas.addEventListener("dblclick", (e) => {
+  if (isPointerOverAvon(e.clientX, e.clientY)) return;
   resetOrbitForRoom(activeIndex);
   if (isLocked) userInteracted = true;
 });
@@ -962,7 +1291,14 @@ function updateCameraFraming() {
 }
 
 window.addEventListener("resize", () => {
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(w, h);
+  composer.setPixelRatio(dpr);
+  composer.setSize(w, h);
+  smaaPass.setSize(Math.max(1, Math.floor(w * dpr)), Math.max(1, Math.floor(h * dpr)));
   updateCameraFraming();
   layoutCrescentMenu(currentSlotProgress);
 });
@@ -1023,6 +1359,7 @@ FURNITURE_CATALOG.forEach((item, idx) => {
           targetRadius = room.idealRadius;
           currentRadius = room.idealRadius;
         }
+        if (isAvonVisible) placeAvonOnActiveFurniture();
       }
 
       crescentItemEls[idx].img.src = captureThumbnailFromObject(modelRoot);
@@ -1062,7 +1399,7 @@ function animate() {
     }
   }
 
-  if (!isDragging && !userInteracted && !isLocked) {
+  if (!isDragging && !isDraggingAvon && !userInteracted && !isLocked) {
     targetAzimuth += dt * 0.22;
   }
 
@@ -1070,6 +1407,11 @@ function animate() {
   currentPolar += (targetPolar - currentPolar) * Math.min(1, dt * 10);
   currentRadius += (targetRadius - currentRadius) * Math.min(1, dt * 10);
   currentPan.lerp(targetPan, Math.min(1, dt * 10));
+
+  if (isAvonVisible) {
+    avonCurrentYaw += (avonTargetYaw - avonCurrentYaw) * Math.min(1, dt * 12);
+    avonProp.group.rotation.y = avonCurrentYaw;
+  }
 
   for (const room of rooms) {
     for (const part of room.interactiveParts) {
@@ -1101,7 +1443,7 @@ function animate() {
   camera.position.set(camX, camY, camZ);
   camera.lookAt(targetX, targetY, targetZ);
 
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 animate();
