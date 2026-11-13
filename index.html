@@ -24,53 +24,53 @@
     </script>
   </head>
   <body>
-    <!-- Lienzo principal Three.js (ocupa toda la pantalla) -->
+    <!-- Lienzo principal Three.js (fondo transparente sobre gradiente nocturno) -->
     <canvas id="stage-canvas" aria-label="Visor 3D de muebles"></canvas>
 
-    <!-- Menú interactivo con forma de medialuna (izquierda en horizontal/PC, abajo en vertical) -->
+    <!-- Menú interactivo con forma de medialuna continua -->
     <aside id="crescent-nav" class="crescent-nav" aria-label="Selector de muebles">
-      <!-- Guía visual del arco vertical (PC / Tablet / Móvil horizontal) -->
+      <!-- Luna continua vertical con extremos afilados y centro ensanchado (PC / Tablet / Móvil horizontal) -->
       <svg
         class="crescent-arc-svg crescent-arc-vertical"
         viewBox="0 0 220 560"
         fill="none"
         aria-hidden="true"
       >
-        <path
-          d="M 28 36 C 148 150, 148 410, 28 524"
-          stroke="url(#crescentGradV)"
-          stroke-width="1.5"
-          stroke-dasharray="4 6"
-        />
         <defs>
           <linearGradient id="crescentGradV" x1="0" y1="36" x2="0" y2="524" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="rgba(255,255,255,0)" />
-            <stop offset="50%" stop-color="rgba(255,255,255,0.28)" />
-            <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+            <stop offset="0%" stop-color="rgba(218,229,255,0)" />
+            <stop offset="22%" stop-color="rgba(218,229,255,0.44)" />
+            <stop offset="50%" stop-color="rgba(255,255,255,0.88)" />
+            <stop offset="78%" stop-color="rgba(218,229,255,0.44)" />
+            <stop offset="100%" stop-color="rgba(218,229,255,0)" />
           </linearGradient>
         </defs>
+        <path
+          d="M 28 36 C 149 150, 149 410, 28 524 C 140 410, 140 150, 28 36 Z"
+          fill="url(#crescentGradV)"
+        />
       </svg>
 
-      <!-- Guía visual del arco horizontal (Móvil vertical) -->
+      <!-- Luna continua horizontal con extremos afilados y centro ensanchado (Móvil vertical) -->
       <svg
         class="crescent-arc-svg crescent-arc-horizontal"
         viewBox="0 0 560 150"
         fill="none"
         aria-hidden="true"
       >
-        <path
-          d="M 36 128 C 150 26, 410 26, 524 128"
-          stroke="url(#crescentGradH)"
-          stroke-width="1.5"
-          stroke-dasharray="4 6"
-        />
         <defs>
           <linearGradient id="crescentGradH" x1="36" y1="0" x2="524" y2="0" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stop-color="rgba(255,255,255,0)" />
-            <stop offset="50%" stop-color="rgba(255,255,255,0.28)" />
-            <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+            <stop offset="0%" stop-color="rgba(218,229,255,0)" />
+            <stop offset="22%" stop-color="rgba(218,229,255,0.44)" />
+            <stop offset="50%" stop-color="rgba(255,255,255,0.88)" />
+            <stop offset="78%" stop-color="rgba(218,229,255,0.44)" />
+            <stop offset="100%" stop-color="rgba(218,229,255,0)" />
           </linearGradient>
         </defs>
+        <path
+          d="M 36 128 C 150 24, 410 24, 524 128 C 410 33, 150 33, 36 128 Z"
+          fill="url(#crescentGradH)"
+        />
       </svg>
 
       <div id="crescent-items" class="crescent-items" role="listbox" aria-label="Muebles"></div>
@@ -90,14 +90,53 @@
       </div>
     </aside>
 
-    <!-- Marca superior discreta -->
+    <!-- Cabecera superior izquierda con menú hamburguesa y marca -->
     <header class="brand-header">
+      <button
+        id="menu-toggle"
+        class="menu-toggle-btn"
+        type="button"
+        aria-expanded="false"
+        aria-controls="category-drawer"
+        aria-label="Abrir categorías de muebles"
+        title="Categorías"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7h16" />
+          <path d="M4 12h16" />
+          <path d="M4 17h16" />
+        </svg>
+      </button>
       <div class="brand-dot" id="brand-dot"></div>
       <span class="brand-name">ENSSAMBLE · CATÁLOGO 3D</span>
+      <span id="active-filter-chip" class="active-filter-chip" hidden></span>
     </header>
 
-    <!-- Tarjeta de información del mueble activo -->
-    <section class="info-card" aria-live="polite">
+    <!-- Ventana desplegable de categorías -->
+    <nav id="category-drawer" class="category-drawer" aria-label="Categorías de muebles" aria-hidden="true">
+      <div class="category-drawer-header">
+        <span class="category-drawer-title">Categorías</span>
+        <button id="drawer-close" class="drawer-close-btn" type="button" aria-label="Cerrar menú">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M18 6L6 18" />
+            <path d="M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div id="category-list" class="category-list"></div>
+      <p id="category-empty-msg" class="category-empty-msg" hidden></p>
+    </nav>
+
+    <!-- Tarjeta de información del mueble activo (plegable con X / desplegable con +) -->
+    <section id="info-card" class="info-card" aria-live="polite">
+      <button
+        id="info-toggle"
+        class="info-toggle-btn"
+        type="button"
+        aria-expanded="true"
+        aria-label="Plegar información"
+        title="Plegar información"
+      ></button>
       <div class="info-meta">
         <span id="info-index" class="info-index">01</span>
         <span id="info-category" class="info-category">Dormitorio</span>

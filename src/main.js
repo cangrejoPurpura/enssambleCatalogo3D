@@ -1,9 +1,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { FURNITURE_CATALOG } from "./furnitureData.js";
+import { CATALOG_CATEGORIES, FURNITURE_CATALOG } from "./furnitureData.js";
 
 const ROOM_SPACING = 6.5; // Distancia vertical entre salas
-const BG_SPACE_HEX = "#0e131f";
 
 const canvas = document.getElementById("stage-canvas");
 const crescentNav = document.getElementById("crescent-nav");
@@ -12,6 +11,15 @@ const btnPrev = document.getElementById("btn-prev");
 const btnNext = document.getElementById("btn-next");
 const navCounter = document.getElementById("nav-counter");
 
+const menuToggleBtn = document.getElementById("menu-toggle");
+const drawerCloseBtn = document.getElementById("drawer-close");
+const categoryDrawer = document.getElementById("category-drawer");
+const categoryListEl = document.getElementById("category-list");
+const categoryEmptyMsg = document.getElementById("category-empty-msg");
+const activeFilterChip = document.getElementById("active-filter-chip");
+
+const infoCard = document.getElementById("info-card");
+const infoToggleBtn = document.getElementById("info-toggle");
 const infoIndex = document.getElementById("info-index");
 const infoCategory = document.getElementById("info-category");
 const infoTitle = document.getElementById("info-title");
@@ -28,14 +36,16 @@ const isLandscapeMobile = () =>
 
 const SVG_LOCK_OPEN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"></rect><path d="M8 11V7a4 4 0 0 1 7.6-1.7"></path></svg>`;
 const SVG_LOCK_CLOSED = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2.5"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>`;
+const SVG_CLOSE_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>`;
+const SVG_EXPAND_PLUS = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>`;
 
 /**
- * Entorno de estudio nocturno espacial con softboxes direccionales 360°
- * para que las aristas biseladas (filos) y micro-relieves ST9 capturen brillos realistas.
+ * Entorno de estudio nocturno con softboxes direccionales 360°
+ * para que las micro-aristas (0.6 mm) y micro-relieves ST9 capturen brillos realistas.
  */
 function buildDarkStudioEnv(targetRenderer) {
   const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color(BG_SPACE_HEX);
+  envScene.background = new THREE.Color("#0d1324");
 
   const addPanel = (color, intensity, pos, rot, size) => {
     const mat = new THREE.MeshBasicMaterial({
@@ -48,16 +58,11 @@ function buildDarkStudioEnv(targetRenderer) {
     envScene.add(mesh);
   };
 
-  // Softbox cenital principal cálido-neutro
-  addPanel("#fff9f0", 3.8, [0, 6.2, 0.8], [Math.PI / 2, 0, 0], [4.0, 4.0]);
-  // Tira lateral derecha rasante (resalta filos y relieve)
-  addPanel("#fff5ea", 3.0, [5.0, 2.0, 2.6], [0, -Math.PI * 0.34, 0], [2.4, 3.8]);
-  // Tira lateral derecha trasera
-  addPanel("#f3ece4", 2.3, [4.6, 2.4, -3.2], [0, -Math.PI * 0.68, 0], [2.2, 3.4]);
-  // Tira frontal izquierda fría-neutra (contraste sobre filos y micro-relieve)
-  addPanel("#e6eeff", 2.6, [-4.8, 2.1, 2.8], [0, Math.PI * 0.34, 0], [2.3, 3.6]);
-  // Contraluz trasero izquierdo para recortar cantos y aristas
-  addPanel("#cfe0ff", 2.5, [-4.5, 2.6, -4.0], [0, Math.PI * 0.72, 0], [2.6, 3.4]);
+  addPanel("#fff9f0", 3.6, [0, 6.2, 0.8], [Math.PI / 2, 0, 0], [4.0, 4.0]);
+  addPanel("#fff5ea", 2.9, [5.0, 2.0, 2.6], [0, -Math.PI * 0.34, 0], [2.4, 3.8]);
+  addPanel("#f3ece4", 2.2, [4.6, 2.4, -3.2], [0, -Math.PI * 0.68, 0], [2.2, 3.4]);
+  addPanel("#e6eeff", 2.5, [-4.8, 2.1, 2.8], [0, Math.PI * 0.34, 0], [2.3, 3.6]);
+  addPanel("#cfe0ff", 2.4, [-4.5, 2.6, -4.0], [0, Math.PI * 0.72, 0], [2.6, 3.4]);
 
   const pmrem = new THREE.PMREMGenerator(targetRenderer);
   const rt = pmrem.fromScene(envScene, 0.032);
@@ -65,14 +70,16 @@ function buildDarkStudioEnv(targetRenderer) {
   return rt;
 }
 
-// Renderer principal con manejo de color fiel PBR (Khronos Neutral ToneMapping)
+// Renderer principal transparente para mostrar el degradado nocturno CSS debajo
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
+  alpha: true,
   powerPreference: "high-performance",
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NeutralToneMapping;
@@ -81,12 +88,11 @@ renderer.toneMappingExposure = 0.94;
 const studioEnvRT = buildDarkStudioEnv(renderer);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(BG_SPACE_HEX);
-scene.fog = new THREE.FogExp2(BG_SPACE_HEX, 0.055);
+scene.background = null;
+scene.fog = null;
 scene.environment = studioEnvRT.texture;
 scene.environmentIntensity = 0.52;
 
-// Cámara principal (near corto para permitir macro-zoom sobre las vetas y ST9)
 const camera = new THREE.PerspectiveCamera(
   35,
   window.innerWidth / window.innerHeight,
@@ -94,30 +100,33 @@ const camera = new THREE.PerspectiveCamera(
   60
 );
 
-// Luz ambiental nocturna + luces rasantes de estudio globales
-const hemiLight = new THREE.HemisphereLight("#f7f4ee", "#141b2d", 0.32);
+const hemiLight = new THREE.HemisphereLight("#f7f4ee", "#151d34", 0.32);
 scene.add(hemiLight);
 
-// Luz rasante frontal-izquierda: marca volumen, filos, vetas y micro-relieve ST9 al rotar
-const keyRakeLight = new THREE.DirectionalLight("#fff6eb", 1.12);
+const keyRakeLight = new THREE.DirectionalLight("#fff6eb", 1.1);
 keyRakeLight.position.set(-2.4, 1.7, 2.2);
 scene.add(keyRakeLight);
 
-// Luz rasante lateral derecha: ilumina cantos y aristas en ángulo oblicuo
-const sideRakeLight = new THREE.DirectionalLight("#fff8f0", 0.98);
+const sideRakeLight = new THREE.DirectionalLight("#fff8f0", 0.96);
 sideRakeLight.position.set(2.6, 1.35, -0.7);
 scene.add(sideRakeLight);
 
-// Contraluz trasero frío: recorta silueta y revela filos en vista posterior
-const rimLight = new THREE.DirectionalLight("#dce8ff", 0.84);
+const rimLight = new THREE.DirectionalLight("#dce8ff", 0.82);
 rimLight.position.set(-1.6, 2.1, -2.5);
 scene.add(rimLight);
 
-// Estado de navegación, candadito, pan y órbita hemisférica
-let activeIndex = 0;
-let currentRoomProgress = 0;
-let targetRoomProgress = 0;
+// Estado de catálogo, filtros, candadito, tarjeta plegable y cámara
+let selectedCategory = "Todos";
+let filteredIndices = FURNITURE_CATALOG.map((_, idx) => idx);
+let activeSlot = 0;
+let activeIndex = filteredIndices[0];
+let currentSlotProgress = 0;
+let targetSlotProgress = 0;
+let currentAnchorY = 0.66;
+
 let isLocked = false;
+let isInfoCollapsed = false;
+let isDrawerOpen = false;
 
 let currentAzimuth = FURNITURE_CATALOG[0].defaultYaw;
 let targetAzimuth = FURNITURE_CATALOG[0].defaultYaw;
@@ -129,15 +138,13 @@ let targetRadius = 1.85;
 const currentPan = new THREE.Vector3();
 const targetPan = new THREE.Vector3();
 
-const MIN_POLAR = 0.03; // ~1.7° desde arriba (vista cenital completa)
+const MIN_POLAR = 0.03;
 const MAX_POLAR = Math.PI / 2 - 0.025;
-const MIN_RADIUS = 0.22; // Macro-zoom cercano (~22 cm)
+const MIN_RADIUS = 0.22;
 const MAX_RADIUS = 5.8;
 
 let isDragging = false;
 let isPanning = false;
-let pointerDownX = 0;
-let pointerDownY = 0;
 let lastPointerX = 0;
 let lastPointerY = 0;
 let dragDistance = 0;
@@ -160,10 +167,11 @@ function createPedestalRoom(item, idx) {
   const roomGroup = new THREE.Group();
   roomGroup.position.y = roomY;
 
-  const floorMat = new THREE.MeshStandardMaterial({
-    color: "#111726",
-    roughness: 0.9,
-    metalness: 0.06,
+  // Suelo invisible receptor de sombras para mantener intacto el degradado nocturno de fondo
+  const floorMat = new THREE.ShadowMaterial({
+    color: "#02040a",
+    opacity: 0.45,
+    transparent: true,
   });
   const floor = new THREE.Mesh(new THREE.CircleGeometry(5.8, 56), floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -172,7 +180,7 @@ function createPedestalRoom(item, idx) {
   roomGroup.add(floor);
 
   const pedestalMat = new THREE.MeshStandardMaterial({
-    color: "#171f33",
+    color: "#151d31",
     roughness: 0.44,
     metalness: 0.16,
   });
@@ -190,7 +198,7 @@ function createPedestalRoom(item, idx) {
     new THREE.MeshBasicMaterial({
       color: item.accent,
       transparent: true,
-      opacity: 0.28,
+      opacity: 0.3,
       side: THREE.DoubleSide,
     })
   );
@@ -199,10 +207,9 @@ function createPedestalRoom(item, idx) {
   roomGroup.add(rimRing);
 
   const modelPivot = new THREE.Group();
-  modelPivot.position.y = 0.14; // Exacto sobre la cara superior del pedestal
+  modelPivot.position.y = 0.14;
   roomGroup.add(modelPivot);
 
-  // Key spotlight cenital calibrado para paneles biselados de 18 mm
   const spot = new THREE.SpotLight("#fff8ee", 13.5, 6.4, Math.PI * 0.16, 0.85, 2.0);
   spot.position.set(1.45, 3.35, 2.15);
   spot.target.position.set(0, 0.45, 0);
@@ -271,10 +278,6 @@ function enhancePbrMaterials(root) {
   });
 }
 
-/**
- * Registra cajones (`Drawer_*` / `Cajon_*`) y puertas (`Door_*` / `Puerta_*`)
- * calculando el vector frontal real en el espacio local de cada subgrupo.
- */
 function registerInteractiveParts(room, modelRoot) {
   room.interactiveParts = [];
   room.interactiveMeshes = [];
@@ -297,7 +300,6 @@ function registerInteractiveParts(room, modelRoot) {
     if (isDrawer) {
       node.parent.getWorldQuaternion(parentWorldQuat);
       invParentQuat.copy(parentWorldQuat).invert();
-      // El frente del mueble en modelPivot apunta a +Z
       const worldFront = new THREE.Vector3(0, 0, 1).applyQuaternion(pivotWorldQuat);
       const localFront = worldFront.applyQuaternion(invParentQuat).normalize();
       const travel = Math.min(0.32, Math.max(0.20, partSize.z * 0.62));
@@ -385,6 +387,9 @@ function buildCrescentSkeleton() {
     card.setAttribute("aria-label", `${item.id} ${item.title}`);
     card.style.background = `radial-gradient(circle at 35% 30%, ${item.thumbBg[0]}, ${item.thumbBg[1]})`;
 
+    const mediaWrap = document.createElement("div");
+    mediaWrap.className = "crescent-media";
+
     const img = document.createElement("img");
     img.className = "crescent-thumb";
     img.alt = item.title;
@@ -392,6 +397,8 @@ function buildCrescentSkeleton() {
     const badge = document.createElement("span");
     badge.className = "crescent-badge";
     badge.textContent = item.id;
+
+    mediaWrap.append(img, badge);
 
     const lockBtn = document.createElement("button");
     lockBtn.type = "button";
@@ -409,20 +416,139 @@ function buildCrescentSkeleton() {
     tooltip.className = "crescent-label-tooltip";
     tooltip.textContent = item.title;
 
-    card.append(img, badge, lockBtn, tooltip);
+    card.append(mediaWrap, lockBtn, tooltip);
     card.addEventListener("click", () => {
-      if (!isLocked) selectRoom(idx);
+      if (isLocked) return;
+      const slot = filteredIndices.indexOf(idx);
+      if (slot !== -1) selectSlot(slot);
     });
     card.addEventListener("keydown", (e) => {
       if ((e.key === "Enter" || e.key === " ") && !isLocked) {
         e.preventDefault();
-        selectRoom(idx);
+        const slot = filteredIndices.indexOf(idx);
+        if (slot !== -1) selectSlot(slot);
       }
     });
     crescentContainer.appendChild(card);
     crescentItemEls.push({ btn: card, img, lockBtn });
   });
 }
+
+function getMatchingIndices(cat) {
+  if (cat === "Todos") return FURNITURE_CATALOG.map((_, idx) => idx);
+  return FURNITURE_CATALOG.reduce((acc, item, idx) => {
+    if (Array.isArray(item.tags) && item.tags.includes(cat)) {
+      acc.push(idx);
+    }
+    return acc;
+  }, []);
+}
+
+function setDrawerOpen(open) {
+  isDrawerOpen = Boolean(open);
+  categoryDrawer.classList.toggle("is-open", isDrawerOpen);
+  categoryDrawer.setAttribute("aria-hidden", String(!isDrawerOpen));
+  menuToggleBtn.setAttribute("aria-expanded", String(isDrawerOpen));
+  if (!isDrawerOpen) {
+    categoryEmptyMsg.hidden = true;
+  }
+}
+
+function buildCategoryMenu() {
+  categoryListEl.innerHTML = "";
+  CATALOG_CATEGORIES.forEach((cat) => {
+    const count = getMatchingIndices(cat).length;
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = "category-pill";
+    pill.dataset.category = cat;
+    if (count === 0) pill.classList.add("is-empty");
+    if (cat === selectedCategory) pill.classList.add("is-selected");
+
+    const label = document.createElement("span");
+    label.textContent = cat;
+
+    const countBadge = document.createElement("span");
+    countBadge.className = "category-count";
+    countBadge.textContent = String(count);
+
+    pill.append(label, countBadge);
+    pill.addEventListener("click", () => selectCategory(cat));
+    categoryListEl.appendChild(pill);
+  });
+}
+
+function selectCategory(cat) {
+  const nextIndices = getMatchingIndices(cat);
+  if (nextIndices.length === 0) {
+    categoryEmptyMsg.textContent = `Aún no hay muebles cargados en «${cat}».`;
+    categoryEmptyMsg.hidden = false;
+    return;
+  }
+
+  categoryEmptyMsg.hidden = true;
+  if (isLocked) setLocked(false);
+
+  selectedCategory = cat;
+  filteredIndices = nextIndices;
+
+  if (selectedCategory === "Todos") {
+    activeFilterChip.hidden = true;
+  } else {
+    activeFilterChip.textContent = selectedCategory;
+    activeFilterChip.hidden = false;
+  }
+
+  categoryListEl.querySelectorAll(".category-pill").forEach((el) => {
+    el.classList.toggle("is-selected", el.dataset.category === selectedCategory);
+  });
+
+  const preservedSlot = filteredIndices.indexOf(activeIndex);
+  const nextSlot = preservedSlot !== -1 ? preservedSlot : 0;
+  const prevActive = activeIndex;
+
+  activeSlot = nextSlot;
+  activeIndex = filteredIndices[activeSlot];
+  currentSlotProgress = activeSlot;
+  targetSlotProgress = activeSlot;
+
+  updateInfoPanel(activeIndex);
+  if (activeIndex !== prevActive) {
+    resetOrbitForRoom(activeIndex);
+  }
+  layoutCrescentMenu(currentSlotProgress);
+  setDrawerOpen(false);
+}
+
+menuToggleBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setDrawerOpen(!isDrawerOpen);
+});
+drawerCloseBtn.addEventListener("click", () => setDrawerOpen(false));
+document.addEventListener("pointerdown", (e) => {
+  if (
+    isDrawerOpen &&
+    !categoryDrawer.contains(e.target) &&
+    !menuToggleBtn.contains(e.target)
+  ) {
+    setDrawerOpen(false);
+  }
+});
+
+// Cartel de información plegable con X / desplegable con +
+function setInfoCollapsed(collapsed) {
+  isInfoCollapsed = Boolean(collapsed);
+  infoCard.classList.toggle("is-collapsed", isInfoCollapsed);
+  infoToggleBtn.innerHTML = isInfoCollapsed ? SVG_EXPAND_PLUS : SVG_CLOSE_X;
+  infoToggleBtn.setAttribute("aria-expanded", String(!isInfoCollapsed));
+  infoToggleBtn.setAttribute(
+    "aria-label",
+    isInfoCollapsed ? "Desplegar información" : "Plegar información"
+  );
+  infoToggleBtn.title = isInfoCollapsed ? "Desplegar información" : "Plegar información";
+}
+
+infoToggleBtn.addEventListener("click", () => setInfoCollapsed(!isInfoCollapsed));
 
 function syncLockUI() {
   document.body.classList.toggle("is-locked", isLocked);
@@ -434,8 +560,8 @@ function syncLockUI() {
       ? "Candado cerrado: clic para desbloquear cambio de mueble"
       : "Fijar vista en este mueble (libertad de movimiento y cajones)";
   });
-  btnPrev.disabled = isLocked || activeIndex === 0;
-  btnNext.disabled = isLocked || activeIndex === FURNITURE_CATALOG.length - 1;
+  btnPrev.disabled = isLocked || activeSlot === 0;
+  btnNext.disabled = isLocked || activeSlot >= filteredIndices.length - 1;
   if (!isLocked) {
     canvas.classList.remove("can-interact-part");
   }
@@ -444,39 +570,49 @@ function syncLockUI() {
 function setLocked(locked) {
   isLocked = Boolean(locked);
   if (isLocked) {
-    userInteracted = true; // Pausa giro automático mientras se inspecciona
+    userInteracted = true;
   }
   syncLockUI();
-  layoutCrescentMenu(currentRoomProgress);
+  layoutCrescentMenu(currentSlotProgress);
 }
 
 function toggleLock() {
   setLocked(!isLocked);
 }
 
-function layoutCrescentMenu(progress) {
+function layoutCrescentMenu(slotProgress) {
   const portrait = isPortraitLayout();
   const compactLandscape = isLandscapeMobile();
   const tablet = window.innerWidth <= 1080;
 
   crescentItemEls.forEach(({ btn }, idx) => {
-    const offset = idx - progress;
+    const slotIdx = filteredIndices.indexOf(idx);
+    if (slotIdx === -1) {
+      btn.style.display = "none";
+      btn.classList.remove("is-active");
+      btn.setAttribute("aria-selected", "false");
+      return;
+    }
+
+    btn.style.display = "flex";
+    const offset = slotIdx - slotProgress;
     const absOff = Math.abs(offset);
     const scale = Math.max(0.46, 1.0 - absOff * 0.25);
-    let opacity = absOff > 2.6 ? 0 : Math.max(0.34, 1 - absOff * 0.24);
-    const isActive = Math.round(progress) === idx;
+    const maxVisibleOff = compactLandscape ? 1.85 : 2.6;
+    let opacity = absOff > maxVisibleOff ? 0 : Math.max(0.34, 1 - absOff * 0.24);
+    const isActive = idx === activeIndex;
 
     if (portrait) {
       const maxStepX = Math.min(92, Math.max(72, window.innerWidth * 0.21));
-      const arcLift = 32;
+      const arcLift = 30;
       const norm = Math.min(absOff / 2.0, 1.2);
       const x = offset * maxStepX;
       const y = -arcLift * Math.max(0, 1 - norm * norm * 0.85);
       btn.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), ${y.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
     } else {
-      const maxStepY = compactLandscape ? 82 : tablet ? 112 : 132;
+      const maxStepY = compactLandscape ? 72 : tablet ? 112 : 132;
       const arcDepth = compactLandscape ? 40 : tablet ? 56 : 76;
-      const baseX = compactLandscape ? 14 : tablet ? 16 : 18;
+      const baseX = compactLandscape ? 38 : tablet ? 40 : 44;
       const norm = Math.min(absOff / 2.2, 1.2);
       const x = baseX + arcDepth * Math.max(0, 1 - norm * norm * 0.85);
       const y = offset * maxStepY;
@@ -519,9 +655,11 @@ function updateInfoPanel(idx) {
     infoPalette.appendChild(dot);
   });
 
-  navCounter.textContent = `${item.id} / ${String(FURNITURE_CATALOG.length).padStart(2, "0")}`;
-  btnPrev.disabled = isLocked || idx === 0;
-  btnNext.disabled = isLocked || idx === FURNITURE_CATALOG.length - 1;
+  const posStr = String(activeSlot + 1).padStart(2, "0");
+  const totalStr = String(filteredIndices.length).padStart(2, "0");
+  navCounter.textContent = `${posStr} / ${totalStr}`;
+  btnPrev.disabled = isLocked || activeSlot === 0;
+  btnNext.disabled = isLocked || activeSlot >= filteredIndices.length - 1;
 }
 
 function resetOrbitForRoom(idx) {
@@ -543,22 +681,22 @@ function stepZoom(factor) {
   targetRadius = clampRadius(targetRadius * factor);
 }
 
-function selectRoom(index) {
+function selectSlot(slot) {
   if (isLocked) return;
-  const clamped = Math.max(0, Math.min(FURNITURE_CATALOG.length - 1, index));
-  if (clamped !== activeIndex) {
-    activeIndex = clamped;
-    targetRoomProgress = clamped;
+  const clampedSlot = Math.max(0, Math.min(filteredIndices.length - 1, slot));
+  if (clampedSlot !== activeSlot) {
+    activeSlot = clampedSlot;
+    activeIndex = filteredIndices[activeSlot];
+    targetSlotProgress = clampedSlot;
     updateInfoPanel(activeIndex);
     resetOrbitForRoom(activeIndex);
   }
 }
 
 // Controles de navegación (flechas, rueda, swipe táctil en la medialuna, teclado)
-btnPrev.addEventListener("click", () => selectRoom(activeIndex - 1));
-btnNext.addEventListener("click", () => selectRoom(activeIndex + 1));
+btnPrev.addEventListener("click", () => selectSlot(activeSlot - 1));
+btnNext.addEventListener("click", () => selectSlot(activeSlot + 1));
 
-// Swipe táctil sobre el panel de medialuna (horizontal en vertical, vertical en escritorio/horizontal)
 let navSwipeActive = false;
 let navSwipeStartX = 0;
 let navSwipeStartY = 0;
@@ -577,7 +715,7 @@ crescentNav.addEventListener("pointermove", (e) => {
   const primaryDelta = isPortraitLayout() ? dx : dy;
   if (Math.abs(primaryDelta) > 36) {
     navSwipeActive = false;
-    selectRoom(activeIndex + (primaryDelta < 0 ? 1 : -1));
+    selectSlot(activeSlot + (primaryDelta < 0 ? 1 : -1));
   }
 });
 
@@ -591,8 +729,8 @@ let wheelCooldown = false;
 window.addEventListener(
   "wheel",
   (e) => {
+    if (isDrawerOpen && categoryDrawer.contains(e.target)) return;
     e.preventDefault();
-    // Con candado cerrado, la rueda siempre hace zoom sin cambiar de mueble
     if (isLocked || e.ctrlKey || e.shiftKey) {
       const zoomStep = Math.max(0.00045, targetRadius * 0.0014);
       targetRadius = clampRadius(targetRadius + e.deltaY * zoomStep);
@@ -601,7 +739,7 @@ window.addEventListener(
     }
     if (wheelCooldown || Math.abs(e.deltaY) < 8) return;
     wheelCooldown = true;
-    selectRoom(activeIndex + (e.deltaY > 0 ? 1 : -1));
+    selectSlot(activeSlot + (e.deltaY > 0 ? 1 : -1));
     setTimeout(() => {
       wheelCooldown = false;
     }, 320);
@@ -612,25 +750,41 @@ window.addEventListener(
 window.addEventListener("keydown", (e) => {
   pressedKeys.add(e.key.toLowerCase());
 
+  if (e.key === "Escape") {
+    if (isDrawerOpen) {
+      setDrawerOpen(false);
+      return;
+    }
+    if (isLocked) {
+      setLocked(false);
+      return;
+    }
+  }
+
   if (e.key === "+" || e.key === "=") {
     stepZoom(0.8);
     return;
   } else if (e.key === "-") {
     stepZoom(1.25);
     return;
-  } else if (e.key === "Escape" && isLocked) {
-    setLocked(false);
-    return;
   }
 
   if (isLocked) return;
 
-  if (e.key === "ArrowDown" || e.key === "PageDown" || (isPortraitLayout() && e.key === "ArrowRight")) {
+  if (
+    e.key === "ArrowDown" ||
+    e.key === "PageDown" ||
+    (isPortraitLayout() && e.key === "ArrowRight")
+  ) {
     e.preventDefault();
-    selectRoom(activeIndex + 1);
-  } else if (e.key === "ArrowUp" || e.key === "PageUp" || (isPortraitLayout() && e.key === "ArrowLeft")) {
+    selectSlot(activeSlot + 1);
+  } else if (
+    e.key === "ArrowUp" ||
+    e.key === "PageUp" ||
+    (isPortraitLayout() && e.key === "ArrowLeft")
+  ) {
     e.preventDefault();
-    selectRoom(activeIndex - 1);
+    selectSlot(activeSlot - 1);
   }
 });
 
@@ -704,8 +858,6 @@ canvas.addEventListener("pointerdown", (e) => {
   isDragging = true;
   pointerDownButton = e.button;
   isPanning = e.button === 2 || e.button === 1 || e.shiftKey;
-  pointerDownX = e.clientX;
-  pointerDownY = e.clientY;
   lastPointerX = e.clientX;
   lastPointerY = e.clientY;
   dragDistance = 0;
@@ -777,13 +929,8 @@ function stopDragging(e) {
 canvas.addEventListener("pointerup", stopDragging);
 canvas.addEventListener("pointercancel", stopDragging);
 canvas.addEventListener("dblclick", () => {
-  if (!isLocked) {
-    resetOrbitForRoom(activeIndex);
-    return;
-  }
-  // En modo candado también centra cámara sin cambiar ni cerrar cajones
   resetOrbitForRoom(activeIndex);
-  userInteracted = true;
+  if (isLocked) userInteracted = true;
 });
 
 function updateCameraFraming() {
@@ -792,20 +939,19 @@ function updateCameraFraming() {
   camera.aspect = w / h;
 
   if (isPortraitLayout()) {
-    // En celular vertical: mueble centrado horizontalmente y encuadrado entre tarjeta superior y luna inferior
     const topReserved = Math.min(205, h * 0.25);
-    const bottomReserved = Math.min(155, h * 0.19);
+    const bottomReserved = Math.min(168, h * 0.2);
     const availableCenterY = topReserved + (h - topReserved - bottomReserved) * 0.5;
     const pixelShiftY = h * 0.5 - availableCenterY;
     camera.setViewOffset(w, h, 0, pixelShiftY, w, h);
   } else if (isLandscapeMobile()) {
-    const leftReserved = 105;
+    const leftReserved = 130;
     const rightReserved = 250;
     const availableCenter = leftReserved + (w - leftReserved - rightReserved) * 0.5;
     const pixelShiftX = w * 0.5 - availableCenter;
     camera.setViewOffset(w, h, pixelShiftX, 0, w, h);
   } else {
-    const leftReserved = w <= 1080 ? 140 : 190;
+    const leftReserved = w <= 1080 ? 165 : 210;
     const rightReserved = w <= 1080 ? 250 : 320;
     const availableCenter = leftReserved + (w - leftReserved - rightReserved) * 0.5;
     const pixelShiftX = w * 0.5 - availableCenter;
@@ -818,16 +964,18 @@ function updateCameraFraming() {
 window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   updateCameraFraming();
-  layoutCrescentMenu(currentRoomProgress);
+  layoutCrescentMenu(currentSlotProgress);
 });
 
-// Inicializar salas y cargar GLBs con PBR real
+// Inicializar salas, UI y cargar GLBs con PBR real
 FURNITURE_CATALOG.forEach((item, idx) => {
   rooms.push(createPedestalRoom(item, idx));
 });
 
 buildCrescentSkeleton();
-updateInfoPanel(0);
+buildCategoryMenu();
+setInfoCollapsed(false);
+updateInfoPanel(activeIndex);
 updateCameraFraming();
 layoutCrescentMenu(0);
 syncLockUI();
@@ -844,7 +992,6 @@ FURNITURE_CATALOG.forEach((item, idx) => {
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
 
-      // Asegura centrado exacto en X/Z y apoyado en Y=0 del pivote
       modelRoot.position.x -= center.x;
       modelRoot.position.z -= center.z;
       modelRoot.position.y -= box.min.y;
@@ -857,7 +1004,6 @@ FURNITURE_CATALOG.forEach((item, idx) => {
 
       registerInteractiveParts(room, modelRoot);
 
-      // Adapta pedestal y cono spotlight al tamaño real del mueble
       const halfFootprint = Math.hypot(size.x, size.z) * 0.5;
       const scaleR = Math.max(1.0, (halfFootprint + 0.16) / 0.74);
       if (scaleR > 1.01) {
@@ -871,9 +1017,12 @@ FURNITURE_CATALOG.forEach((item, idx) => {
         room.spot.shadow.camera.updateProjectionMatrix();
       }
 
-      if (idx === activeIndex && !userInteracted) {
-        targetRadius = room.idealRadius;
-        currentRadius = room.idealRadius;
+      if (idx === activeIndex) {
+        currentAnchorY = room.roomY + 0.14 + room.targetCenterY;
+        if (!userInteracted) {
+          targetRadius = room.idealRadius;
+          currentRadius = room.idealRadius;
+        }
       }
 
       crescentItemEls[idx].img.src = captureThumbnailFromObject(modelRoot);
@@ -895,13 +1044,12 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
 
-  const prevProgress = currentRoomProgress;
-  currentRoomProgress += (targetRoomProgress - currentRoomProgress) * Math.min(1, dt * 7.5);
-  if (Math.abs(currentRoomProgress - prevProgress) > 0.0002) {
-    layoutCrescentMenu(currentRoomProgress);
+  const prevProgress = currentSlotProgress;
+  currentSlotProgress += (targetSlotProgress - currentSlotProgress) * Math.min(1, dt * 7.5);
+  if (Math.abs(currentSlotProgress - prevProgress) > 0.0002) {
+    layoutCrescentMenu(currentSlotProgress);
   }
 
-  // Movimiento libre por teclado (WASD / flechas) en modo candado cerrado
   if (isLocked) {
     let keyDx = 0;
     let keyDy = 0;
@@ -910,8 +1058,7 @@ function animate() {
     if (pressedKeys.has("arrowup") || pressedKeys.has("w")) keyDy += 1;
     if (pressedKeys.has("arrowdown") || pressedKeys.has("s")) keyDy -= 1;
     if (keyDx !== 0 || keyDy !== 0) {
-      const keySpeed = 420 * dt;
-      applyPanDelta(keyDx * keySpeed, keyDy * keySpeed);
+      applyPanDelta(keyDx * 420 * dt, keyDy * 420 * dt);
     }
   }
 
@@ -924,7 +1071,6 @@ function animate() {
   currentRadius += (targetRadius - currentRadius) * Math.min(1, dt * 10);
   currentPan.lerp(targetPan, Math.min(1, dt * 10));
 
-  // Animar apertura y cierre de cajones/puertas
   for (const room of rooms) {
     for (const part of room.interactiveParts) {
       if (Math.abs(part.targetProgress - part.progress) > 0.0005) {
@@ -939,17 +1085,12 @@ function animate() {
     }
   }
 
-  // Interpola la altura del centro del mueble entre salas
-  const idxLow = Math.floor(currentRoomProgress);
-  const idxHigh = Math.min(rooms.length - 1, idxLow + 1);
-  const frac = currentRoomProgress - idxLow;
-  const centerY =
-    0.14 +
-    rooms[idxLow].targetCenterY * (1 - frac) +
-    rooms[idxHigh].targetCenterY * frac;
+  const activeRoom = rooms[activeIndex];
+  const targetAnchorY = activeRoom.roomY + 0.14 + activeRoom.targetCenterY;
+  currentAnchorY += (targetAnchorY - currentAnchorY) * Math.min(1, dt * 7.5);
 
   const targetX = currentPan.x;
-  const targetY = -currentRoomProgress * ROOM_SPACING + centerY + currentPan.y;
+  const targetY = currentAnchorY + currentPan.y;
   const targetZ = currentPan.z;
 
   const sinPhi = Math.sin(currentPolar);

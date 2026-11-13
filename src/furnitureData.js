@@ -1,8 +1,23 @@
+export const CATALOG_CATEGORIES = [
+  "Todos",
+  "Living",
+  "Dormitorio",
+  "Baño",
+  "Cocina",
+  "Oficina",
+  "Comedor",
+  "Recibidor",
+  "Lavandería",
+  "Exterior",
+  "Otros",
+];
+
 export const FURNITURE_CATALOG = [
   {
     id: "01",
     title: "Mesa de Luz Bicolor",
     category: "Dormitorio",
+    tags: ["Dormitorio"],
     description:
       "Módulo compacto con nicho superior abierto y cajón inferior. Estructura en Gris Macadán combinada con Camellia e interior blanco.",
     dimensions: "45 × 39.8 × 65.2 cm",
@@ -18,6 +33,7 @@ export const FURNITURE_CATALOG = [
     id: "02",
     title: "Mesa Auxiliar en C",
     category: "Living",
+    tags: ["Living", "Dormitorio", "Oficina"],
     description:
       "Mesa lateral tipo C en melamina Gris Macadán con dos estantes integrados y voladizo superior para apoyar junto al sofá o cama.",
     dimensions: "60 × 32 × 73.6 cm",
@@ -33,6 +49,7 @@ export const FURNITURE_CATALOG = [
     id: "03",
     title: "Carro Organizador Rodante",
     category: "Multiuso",
+    tags: ["Baño", "Cocina", "Lavandería", "Oficina", "Otros"],
     description:
       "Estantería vertical de cuatro niveles con bandeja superior contenida, cuatro ruedas giratorias en Gris Humo y herrajes en acero satinado.",
     dimensions: "40 × 35.1 × 87.8 cm",
@@ -47,7 +64,8 @@ export const FURNITURE_CATALOG = [
   {
     id: "04",
     title: "Escritorio con Cajones",
-    category: "Home Office",
+    category: "Oficina",
+    tags: ["Oficina", "Dormitorio"],
     description:
       "Escritorio amplio de doble tapa con cajonera lateral de cuatro cajones en Camellia y estructura con faldón en Negro.",
     dimensions: "185.5 × 62.5 × 86.8 cm",
