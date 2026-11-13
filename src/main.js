@@ -986,15 +986,15 @@ function layoutCrescentMenu(slotProgress) {
 
     if (portrait) {
       const maxStepX = Math.min(92, Math.max(72, window.innerWidth * 0.21));
-      const arcLift = 18;
+      const arcLift = 12;
       const norm = Math.min(absOff / 2.0, 1.2);
       const x = offset * maxStepX;
       const y = -arcLift * Math.max(0, 1 - norm * norm * 0.85);
       btn.style.transform = `translate3d(calc(-50% + ${x.toFixed(1)}px), ${y.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
     } else {
-      const maxStepY = compactLandscape ? 68 : tablet ? 104 : 122;
-      const arcDepth = compactLandscape ? 36 : tablet ? 58 : 76;
-      const baseX = compactLandscape ? 60 : tablet ? 68 : 78;
+      const maxStepY = compactLandscape ? 66 : tablet ? 102 : 118;
+      const arcDepth = compactLandscape ? 44 : tablet ? 60 : 70;
+      const baseX = compactLandscape ? 28 : tablet ? 24 : 24;
       const norm = Math.min(absOff / 2.2, 1.2);
       const x = baseX + arcDepth * Math.max(0, 1 - norm * norm * 0.85);
       const y = offset * maxStepY;
@@ -1394,18 +1394,18 @@ function updateCameraFraming() {
 
   if (isPortraitLayout()) {
     const topReserved = Math.min(238, h * 0.29);
-    const bottomReserved = Math.min(208, h * 0.25);
+    const bottomReserved = Math.min(168, h * 0.20);
     const availableCenterY = topReserved + (h - topReserved - bottomReserved) * 0.5;
     const pixelShiftY = h * 0.5 - availableCenterY;
     camera.setViewOffset(w, h, 0, pixelShiftY, w, h);
   } else if (isLandscapeMobile()) {
-    const leftReserved = 150;
+    const leftReserved = 125;
     const rightReserved = 250;
     const availableCenter = leftReserved + (w - leftReserved - rightReserved) * 0.5;
     const pixelShiftX = w * 0.5 - availableCenter;
     camera.setViewOffset(w, h, pixelShiftX, 0, w, h);
   } else {
-    const leftReserved = w <= 1080 ? 190 : 240;
+    const leftReserved = w <= 1080 ? 165 : 200;
     const rightReserved = w <= 1080 ? 250 : 320;
     const availableCenter = leftReserved + (w - leftReserved - rightReserved) * 0.5;
     const pixelShiftX = w * 0.5 - availableCenter;

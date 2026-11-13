@@ -308,7 +308,7 @@ body {
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 280px;
+  width: 240px;
   height: 560px;
   z-index: 30;
   pointer-events: none;
@@ -322,7 +322,7 @@ body {
 }
 
 .crescent-arc-vertical {
-  width: 190px;
+  width: 145px;
   height: 560px;
   display: block;
 }
@@ -430,14 +430,14 @@ body.is-locked .crescent-item:not(.is-active) {
   pointer-events: none;
 }
 
-/* Candadito bien separado del thumbnail activo y de la luna */
+/* Candadito compacto entre el thumbnail activo y la luna */
 .lock-btn {
   position: absolute;
-  right: calc(100% + 22px);
+  right: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%);
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   background: rgba(12, 16, 28, 0.78);
@@ -503,8 +503,8 @@ body.is-locked .crescent-item:not(.is-active) {
 /* Controles arriba/abajo bajo la medialuna */
 .crescent-controls {
   position: fixed;
-  left: 44px;
-  bottom: -36px;
+  left: 26px;
+  bottom: -32px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -723,12 +723,12 @@ body.is-locked .crescent-item:not(.is-active) {
 /* Tablets en horizontal intermedio */
 @media (max-width: 1080px) and (orientation: landscape) {
   .crescent-nav {
-    width: 235px;
+    width: 210px;
     height: 480px;
   }
 
   .crescent-arc-vertical {
-    width: 165px;
+    width: 126px;
     height: 480px;
   }
 
@@ -746,7 +746,7 @@ body.is-locked .crescent-item:not(.is-active) {
   }
 }
 
-/* Celular en horizontal: mantiene arquitectura lateral con mayor separación luna / candado / tarjeta */
+/* Celular en horizontal: mantiene arquitectura lateral con conjunto compacto a la izquierda */
 @media (max-height: 540px) and (orientation: landscape) {
   .brand-header {
     top: 12px;
@@ -759,13 +759,13 @@ body.is-locked .crescent-item:not(.is-active) {
   }
 
   .crescent-nav {
-    width: 205px;
+    width: 175px;
     height: calc(100vh - 58px);
     top: 52%;
   }
 
   .crescent-arc-vertical {
-    width: 130px;
+    width: 108px;
     height: 100%;
   }
 
@@ -776,14 +776,14 @@ body.is-locked .crescent-item:not(.is-active) {
   }
 
   .lock-btn {
-    width: 25px;
-    height: 25px;
-    right: calc(100% + 14px);
+    width: 24px;
+    height: 24px;
+    right: calc(100% + 8px);
   }
 
   .crescent-controls {
-    left: 24px;
-    bottom: -24px;
+    left: 16px;
+    bottom: -22px;
     gap: 8px;
   }
 
@@ -917,15 +917,15 @@ body.is-locked .crescent-item:not(.is-active) {
     font-size: 11.5px;
   }
 
-  /* Medialuna horizontal abajo con clara separación entre tarjeta -> candado -> luna */
+  /* Medialuna horizontal abajo: conjunto compacto (tarjeta + candado + luna) corrido más abajo */
   .crescent-nav {
     left: 50%;
     right: auto;
     top: auto;
-    bottom: 8px;
+    bottom: 4px;
     transform: translateX(-50%);
     width: min(340px, calc(100vw - 88px));
-    height: 196px;
+    height: 158px;
     pointer-events: auto;
     touch-action: pan-y;
   }
@@ -937,7 +937,7 @@ body.is-locked .crescent-item:not(.is-active) {
   .crescent-arc-horizontal {
     display: block;
     width: 100%;
-    height: 54px;
+    height: 44px;
     top: auto;
     bottom: 14px;
   }
@@ -945,10 +945,10 @@ body.is-locked .crescent-item:not(.is-active) {
   .crescent-item {
     left: 50%;
     top: auto;
-    bottom: 92px;
-    width: 74px;
-    height: 74px;
-    border-radius: 17px;
+    bottom: 72px;
+    width: 70px;
+    height: 70px;
+    border-radius: 16px;
   }
 
   .crescent-badge {
@@ -958,15 +958,15 @@ body.is-locked .crescent-item:not(.is-active) {
     padding: 1px 5px;
   }
 
-  /* Candadito centrado debajo del thumbnail, bien separado tanto del card como de la luna */
+  /* Candadito centrado debajo del thumbnail, más próximo entre tarjeta y luna */
   .lock-btn {
     left: 50%;
     right: auto;
-    top: calc(100% + 16px);
+    top: calc(100% + 8px);
     bottom: auto;
     transform: translateX(-50%);
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
   }
 
   .lock-btn:hover {
@@ -978,9 +978,9 @@ body.is-locked .crescent-item:not(.is-active) {
     position: absolute;
     left: -38px;
     right: -38px;
-    bottom: 86px;
+    bottom: 66px;
     top: auto;
-    height: 86px;
+    height: 76px;
     padding: 0 2px;
     justify-content: space-between;
     pointer-events: none;
@@ -1002,7 +1002,7 @@ body.is-locked .crescent-item:not(.is-active) {
   .nav-counter {
     position: absolute;
     left: 50%;
-    bottom: -86px;
+    bottom: -62px;
     transform: translateX(-50%);
     font-size: 10.5px;
     min-width: 0;
