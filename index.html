@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Enssamble — Catálogo 3D</title>
+    <link rel="icon" type="image/png" href="./enssamble_icon_64.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+
+    <!-- Import Map: funciona directo en GitHub Pages sin bundler -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Lienzo principal Three.js (ocupa toda la pantalla) -->
+    <canvas id="stage-canvas" aria-label="Visor 3D de muebles"></canvas>
+
+    <!-- Menú interactivo con forma de medialuna (izquierda en horizontal/PC, abajo en vertical) -->
+    <aside id="crescent-nav" class="crescent-nav" aria-label="Selector de muebles">
+      <!-- Guía visual del arco vertical (PC / Tablet / Móvil horizontal) -->
+      <svg
+        class="crescent-arc-svg crescent-arc-vertical"
+        viewBox="0 0 220 560"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M 28 36 C 148 150, 148 410, 28 524"
+          stroke="url(#crescentGradV)"
+          stroke-width="1.5"
+          stroke-dasharray="4 6"
+        />
+        <defs>
+          <linearGradient id="crescentGradV" x1="0" y1="36" x2="0" y2="524" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="rgba(255,255,255,0)" />
+            <stop offset="50%" stop-color="rgba(255,255,255,0.28)" />
+            <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <!-- Guía visual del arco horizontal (Móvil vertical) -->
+      <svg
+        class="crescent-arc-svg crescent-arc-horizontal"
+        viewBox="0 0 560 150"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M 36 128 C 150 26, 410 26, 524 128"
+          stroke="url(#crescentGradH)"
+          stroke-width="1.5"
+          stroke-dasharray="4 6"
+        />
+        <defs>
+          <linearGradient id="crescentGradH" x1="36" y1="0" x2="524" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="rgba(255,255,255,0)" />
+            <stop offset="50%" stop-color="rgba(255,255,255,0.28)" />
+            <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <div id="crescent-items" class="crescent-items" role="listbox" aria-label="Muebles"></div>
+
+      <div class="crescent-controls">
+        <button id="btn-prev" class="nav-arrow" type="button" aria-label="Mueble anterior" title="Anterior">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 15l-6-6-6 6" />
+          </svg>
+        </button>
+        <span id="nav-counter" class="nav-counter">01 / 04</span>
+        <button id="btn-next" class="nav-arrow" type="button" aria-label="Mueble siguiente" title="Siguiente">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Marca superior discreta -->
+    <header class="brand-header">
+      <div class="brand-dot" id="brand-dot"></div>
+      <span class="brand-name">ENSSAMBLE · CATÁLOGO 3D</span>
+    </header>
+
+    <!-- Tarjeta de información del mueble activo -->
+    <section class="info-card" aria-live="polite">
+      <div class="info-meta">
+        <span id="info-index" class="info-index">01</span>
+        <span id="info-category" class="info-category">Dormitorio</span>
+      </div>
+      <h1 id="info-title" class="info-title">Cargando...</h1>
+      <p id="info-desc" class="info-desc"></p>
+      <div class="info-specs">
+        <div class="spec-pill">
+          <span class="spec-label">Medidas</span>
+          <span id="info-dims" class="spec-value"></span>
+        </div>
+        <div class="spec-pill">
+          <span class="spec-label">Melamina</span>
+          <span id="info-materials" class="spec-value spec-materials"></span>
+        </div>
+        <div class="spec-pill">
+          <span class="spec-label">Paleta</span>
+          <span id="info-palette" class="spec-swatches"></span>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="./src/main.js"></script>
+
+    <!-- Live Reload automático solo en entorno local (en GitHub Pages se desactiva solo) -->
+    <script>
+      if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+        let lastVersion = null;
+        setInterval(async () => {
+          try {
+            const res = await fetch("/__version", { cache: "no-store" });
+            if (!res.ok) return;
+            const version = await res.text();
+            if (lastVersion !== null && version !== lastVersion) location.reload();
+            lastVersion = version;
+          } catch {}
+        }, 700);
+      }
+    </script>
+  </body>
+</html>
